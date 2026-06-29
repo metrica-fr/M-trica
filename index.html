@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Métrica — Portafolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    /* ══════════════════════════════════════
+       TOKENS — Métrica brand
+    ══════════════════════════════════════ */
+    :root {
+      --bg:        #080c08;
+      --surface:   #0d120d;
+      --border:    #1a221a;
+      --accent:    #39ff6e;   /* neon green */
+      --accent-dim:#1a8c3a;
+      --text:      #e8f0e8;
+      --muted:     #5a6b5a;
+      --success:   #39ff6e;
+      --error:     #ff5c5c;
+      --radius:    12px;
+      --font-disp: 'Space Grotesk', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-disp);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grain texture */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* Green cursor glow */
+    .glow {
+      position: fixed;
+      width: 600px; height: 600px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(57,255,110,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: left 0.5s ease, top 0.5s ease;
+      z-index: 0;
+    }
+
+    /* ══════════════════════════════════════ NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 4rem;
+      background: rgba(8,12,8,0.75);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo-wrap {
+      display: flex; align-items: center; gap: 0.7rem;
+      cursor: pointer; user-select: none;
+      position: relative;
+    }
+
+    .logo-img {
+      height: 32px; width: auto;
+      filter: drop-shadow(0 0 8px rgba(57,255,110,0.6));
+      transition: filter 0.3s;
+    }
+    .logo-wrap:hover .logo-img {
+      filter: drop-shadow(0 0 14px rgba(57,255,110,0.9));
+    }
+
+    .logo-name {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .logo-name span { color: var(--accent); }
+
+    .tap-progress {
+      position: absolute; bottom: -5px; left: 0;
+      height: 2px; width: 0%;
+      background: linear-gradient(90deg, var(--accent), #b3ff77);
+      border-radius: 2px;
+      transition: width 0.15s ease;
+    }
+
+    .logo-hint {
+      position: absolute; top: 130%; left: 0;
+      font-size: 0.6rem; font-family: var(--font-mono);
+      color: var(--muted); white-space: nowrap;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .logo-wrap:hover .logo-hint { opacity: 1; }
+
+    nav ul { list-style: none; display: flex; gap: 2.5rem; }
+    nav ul a {
+      color: var(--muted); text-decoration: none;
+      font-size: 0.82rem; font-weight: 500;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    nav ul a:hover { color: var(--accent); }
+
+    /* ══════════════════════════════════════ HERO */
+    .hero {
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 0 4rem;
+      max-width: 1100px; margin: 0 auto;
+    }
+
+    .hero-eyebrow {
+      font-family: var(--font-mono); font-size: 0.72rem;
+      color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .hero-eyebrow::before {
+      content: ''; width: 28px; height: 1px;
+      background: var(--accent); display: inline-block;
+    }
+
+    .hero h1 {
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 700; line-height: 1.05;
+      letter-spacing: -0.04em; margin-bottom: 1.5rem;
+    }
+    .hero h1 .accent {
+      color: var(--accent);
+      text-shadow: 0 0 30px rgba(57,255,110,0.4);
+    }
+
+    .hero-sub {
+      font-size: 1.05rem; color: var(--muted);
+      max-width: 450px; line-height: 1.75;
+      margin-bottom: 3rem;
+    }
+
+    .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.7rem 1.6rem; border-radius: 9999px;
+      font-family: var(--font-disp); font-size: 0.875rem;
+      font-weight: 600; cursor: pointer;
+      transition: all 0.2s; text-decoration: none; border: none;
+    }
+    .btn-primary {
+      background: var(--accent); color: #080c08;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(57,255,110,0.35);
+    }
+    .btn-ghost {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    .scroll-line-wrap {
+      position: absolute; bottom: 2.5rem; left: 4rem;
+      display: flex; align-items: center; gap: 0.75rem;
+      color: var(--muted); font-size: 0.72rem;
+      font-family: var(--font-mono); letter-spacing: 0.1em;
+    }
+    .scroll-line {
+      width: 36px; height: 1px; background: var(--border);
+      position: relative; overflow: hidden;
+    }
+    .scroll-line::after {
+      content: ''; position: absolute;
+      top: 0; left: -100%; width: 100%; height: 100%;
+      background: var(--accent);
+      animation: scan 2s infinite;
+    }
+    @keyframes scan { 0%{left:-100%} 100%{left:100%} }
+
+    /* ══════════════════════════════════════ SECTION */
+    section {
+      position: relative; z-index: 1;
+      max-width: 1100px; margin: 0 auto;
+      padding: 6rem 4rem;
+    }
+    .section-label {
+      font-family: var(--font-mono); font-size: 0.68rem;
+      color: var(--accent); letter-spacing: 0.18em;
+      text-transform: uppercase; margin-bottom: 0.6rem;
+    }
+    .section-title {
+      font-size: clamp(1.75rem, 3vw, 2.4rem);
+      font-weight: 700; letter-spacing: -0.025em;
+      margin-bottom: 3rem;
+    }
+    .section-title span { color: var(--muted); font-weight: 300; }
+
+    /* ══════════════════════════════════════ PROJECTS GRID */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    /* PROJECT CARD */
+    .project-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      text-decoration: none; color: inherit;
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+    .project-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(57,255,110,0.35);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5),
+                  0 0 0 1px rgba(57,255,110,0.08);
+    }
+
+    /* ── IMAGEN CUADRADA 1:1 */
+    .card-thumb {
+      width: 100%; aspect-ratio: 1 / 1;
+      object-fit: cover;
+      background: var(--border);
+      display: block;
+    }
+    .card-thumb-placeholder {
+      width: 100%; aspect-ratio: 1 / 1;
+      background: linear-gradient(135deg, #0d120d 0%, #111a11 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-thumb-placeholder svg { opacity: 0.15; }
+
+    .card-body {
+      padding: 1.4rem; flex: 1;
+      display: flex; flex-direction: column;
+    }
+    .card-tags {
+      display: flex; flex-wrap: wrap; gap: 0.35rem;
+      margin-bottom: 0.7rem;
+    }
+    .tag {
+      font-family: var(--font-mono); font-size: 0.62rem;
+      padding: 0.2rem 0.55rem; border-radius: 9999px;
+      background: rgba(57,255,110,0.07);
+      color: var(--accent);
+      border: 1px solid rgba(57,255,110,0.18);
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .card-title {
+      font-size: 1.1rem; font-weight: 600;
+      margin-bottom: 0.4rem; letter-spacing: -0.01em;
+    }
+    .card-desc {
+      font-size: 0.845rem; color: var(--muted);
+      line-height: 1.65; flex: 1;
+    }
+    .card-footer {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      margin-top: 1.1rem; padding-top: 0.9rem;
+      border-top: 1px solid var(--border);
+    }
+    .card-link {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--accent);
+      display: flex; align-items: center; gap: 0.35rem;
+      transition: gap 0.2s;
+    }
+    .project-card:hover .card-link { gap: 0.65rem; }
+
+    .featured-badge {
+      font-size: 0.62rem; font-family: var(--font-mono);
+      padding: 0.2rem 0.5rem;
+      background: rgba(57,255,110,0.08);
+      border: 1px solid rgba(57,255,110,0.2);
+      border-radius: 9999px; color: var(--accent);
+    }
+
+    /* ══════════════════════════════════════ SKELETON */
+    .loading-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .skeleton {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .skeleton-sq {
+      width: 100%; aspect-ratio: 1/1;
+      background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+    }
+    .skeleton-body { padding: 1.4rem; }
+    .skeleton-line {
+      height: 11px; border-radius: 6px;
+      background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+      margin-bottom: 0.7rem;
+    }
+    .skeleton-line:nth-child(1){width:38%}
+    .skeleton-line:nth-child(2){width:72%;height:16px}
+    .skeleton-line:nth-child(3){width:88%}
+    .skeleton-line:nth-child(4){width:60%}
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ══════════════════════════════════════ EMPTY */
+    .empty-state {
+      grid-column: 1/-1; text-align: center;
+      padding: 4rem 2rem; color: var(--muted);
+    }
+    .empty-state svg { margin-bottom: 1rem; opacity: 0.2; }
+    .empty-state p { font-size: 0.875rem; line-height: 1.8; }
+
+    /* ══════════════════════════════════════ FOOTER */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem 4rem;
+      max-width: 1100px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    footer span { color: var(--muted); font-size: 0.78rem; font-family: var(--font-mono); }
+
+    /* ══════════════════════════════════════ MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88);
+      backdrop-filter: blur(10px);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px; padding: 3rem;
+      width: 100%; max-width: 430px; position: relative;
+      animation: pop-in 0.28s ease;
+    }
+    @keyframes pop-in {
+      from { opacity:0; transform:scale(0.94) translateY(12px); }
+      to   { opacity:1; transform:scale(1) translateY(0); }
+    }
+
+    .modal-close {
+      position: absolute; top: 1.2rem; right: 1.2rem;
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: 1.2rem; line-height: 1;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-icon {
+      width: 46px; height: 46px;
+      background: rgba(57,255,110,0.08);
+      border: 1px solid rgba(57,255,110,0.2);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; margin-bottom: 1.5rem;
+    }
+    .modal h2 { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.4rem; letter-spacing: -0.02em; }
+    .modal p { font-size: 0.83rem; color: var(--muted); margin-bottom: 1.75rem; line-height: 1.65; }
+
+    .input-group { margin-bottom: 1rem; }
+    .input-group label {
+      display: block; font-size: 0.7rem;
+      font-family: var(--font-mono); color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 0.45rem;
+    }
+    .input-group input {
+      width: 100%; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 10px;
+      padding: 0.875rem 1rem; color: var(--text);
+      font-family: var(--font-mono); font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(57,255,110,0.12);
+    }
+    .input-group input.err { border-color: var(--error); box-shadow: 0 0 0 3px rgba(255,92,92,0.12); }
+
+    .error-msg {
+      color: var(--error); font-size: 0.77rem;
+      font-family: var(--font-mono); margin-top: 0.4rem;
+      display: none;
+    }
+    .error-msg.show { display: block; }
+
+    .modal-btn {
+      width: 100%; padding: 0.875rem; border-radius: 10px;
+      border: none; background: var(--accent); color: #080c08;
+      font-weight: 700; font-size: 0.9rem; cursor: pointer;
+      transition: opacity 0.2s, transform 0.2s;
+      margin-top: 0.5rem; font-family: var(--font-disp);
+    }
+    .modal-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .modal-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* ══════════════════════════════════════ ADMIN PANEL */
+    #admin-panel {
+      display: none; position: fixed; inset: 0;
+      background: var(--bg); z-index: 900; overflow-y: auto;
+    }
+    #admin-panel.open { display: block; }
+
+    .admin-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1.1rem 3rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .admin-nav h1 {
+      font-size: 0.95rem; font-weight: 600;
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .admin-badge {
+      font-family: var(--font-mono); font-size: 0.58rem;
+      padding: 0.2rem 0.5rem;
+      background: rgba(57,255,110,0.08);
+      color: var(--accent);
+      border: 1px solid rgba(57,255,110,0.2);
+      border-radius: 9999px; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    .admin-body { padding: 2.5rem 3rem; max-width: 900px; }
+    .admin-section-title {
+      font-size: 1.1rem; font-weight: 700;
+      margin-bottom: 1.4rem;
+      display: flex; align-items: center; gap: 0.65rem;
+    }
+
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1rem; background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.75rem;
+      margin-bottom: 2.5rem;
+    }
+    .form-grid .full { grid-column: 1/-1; }
+    .form-field label {
+      display: block; font-size: 0.68rem;
+      font-family: var(--font-mono); color: var(--muted);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .form-field input, .form-field textarea {
+      width: 100%; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.65rem 0.875rem; color: var(--text);
+      font-family: var(--font-disp); font-size: 0.855rem;
+      outline: none; transition: border-color 0.2s; resize: vertical;
+    }
+    .form-field input:focus, .form-field textarea:focus { border-color: var(--accent); }
+    .form-field .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem; }
+    .form-field input[type="checkbox"] { width:auto; accent-color: var(--accent); }
+
+    .admin-table {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .admin-table th {
+      text-align: left; font-family: var(--font-mono);
+      font-size: 0.62rem; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted);
+      padding: 0.9rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.015);
+    }
+    .admin-table td {
+      padding: 0.9rem 1.2rem; font-size: 0.85rem;
+      border-bottom: 1px solid rgba(26,34,26,0.7);
+      vertical-align: middle;
+    }
+    .admin-table tr:last-child td { border-bottom: none; }
+    .admin-table tr:hover td { background: rgba(57,255,110,0.025); }
+
+    .del-btn {
+      background: none;
+      border: 1px solid rgba(255,92,92,0.25);
+      color: var(--error); padding: 0.3rem 0.7rem;
+      border-radius: 6px; cursor: pointer;
+      font-size: 0.73rem; transition: all 0.2s;
+    }
+    .del-btn:hover { background: rgba(255,92,92,0.08); }
+
+    .dot {
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--success);
+      margin-right: 0.4rem; box-shadow: 0 0 6px var(--accent);
+    }
+    .dot.off { background: var(--muted); box-shadow: none; }
+
+    /* ══════════════════════════════════════ TOAST */
+    #toast {
+      position: fixed; bottom: 2rem; right: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.9rem 1.4rem;
+      font-size: 0.855rem;
+      display: flex; align-items: center; gap: 0.7rem;
+      opacity: 0; transform: translateY(8px);
+      pointer-events: none;
+      transition: all 0.3s ease;
+      z-index: 9999; max-width: 300px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    #toast.show { opacity:1; transform:translateY(0); pointer-events:auto; }
+    #toast.success { border-color: rgba(57,255,110,0.3); }
+    #toast.error   { border-color: rgba(255,92,92,0.3); }
+
+    /* ══════════════════════════════════════ RESPONSIVE */
+    @media (max-width: 768px) {
+      nav { padding: 1rem 1.5rem; }
+      nav ul { display: none; }
+      .hero, section { padding-left: 1.5rem; padding-right: 1.5rem; }
+      footer { padding: 1.5rem; flex-direction: column; gap: 0.5rem; text-align: center; }
+      .admin-body { padding: 1.25rem 1.5rem; }
+      .admin-nav { padding: 1rem 1.5rem; }
+      .form-grid { grid-template-columns: 1fr; }
+      .scroll-line-wrap { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="glow" id="glow"></div>
+
+<!-- ══════════ NAV ══════════ -->
+<nav>
+  <div class="logo-wrap" id="logo-tap">
+    <img class="logo-img" src="logo.png" alt="Métrica logo" />
+    <span class="logo-name">Mé<span>trica</span></span>
+    <span class="logo-hint">Toca 5× para admin</span>
+    <div class="tap-progress" id="tap-bar"></div>
+  </div>
+  <ul>
+    <li><a href="#proyectos">Proyectos</a></li>
+    <li><a href="#contacto">Contacto</a></li>
+  </ul>
+</nav>
+
+<!-- ══════════ HERO ══════════ -->
+<div class="hero">
+  <p class="hero-eyebrow">Estrategia · Datos · Resultados</p>
+  <h1>Proyectos que<br><span class="accent">generan impacto</span></h1>
+  <p class="hero-sub">
+    En Métrica construimos soluciones digitales basadas en datos.<br>
+    Cada proyecto, medido. Cada decisión, fundamentada.
+  </p>
+  <div class="hero-cta">
+    <a href="#proyectos" class="btn btn-primary">Ver proyectos ↓</a>
+    <a href="mailto:hola@metrica.co" class="btn btn-ghost">Contáctanos</a>
+  </div>
+  <div class="scroll-line-wrap">
+    <div class="scroll-line"></div>
+    scroll
+  </div>
+</div>
+
+<!-- ══════════ PROYECTOS ══════════ -->
+<section id="proyectos">
+  <p class="section-label">Portafolio</p>
+  <h2 class="section-title">Proyectos <span>seleccionados</span></h2>
+  <div id="projects-container" class="loading-grid">
+    <div class="skeleton"><div class="skeleton-sq"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+    <div class="skeleton"><div class="skeleton-sq"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+    <div class="skeleton"><div class="skeleton-sq"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div></div>
+  </div>
+</section>
+
+<!-- ══════════ CONTACTO ══════════ -->
+<section id="contacto">
+  <p class="section-label">Contacto</p>
+  <h2 class="section-title">Hablemos <span>de tu proyecto</span></h2>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+    <a href="mailto:hola@metrica.co" class="btn btn-primary">hola@metrica.co ↗</a>
+    <a href="https://github.com/metrica" target="_blank" class="btn btn-ghost">GitHub</a>
+    <a href="https://linkedin.com/company/metrica" target="_blank" class="btn btn-ghost">LinkedIn</a>
+  </div>
+</section>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <span>&copy; <span id="year"></span> Métrica — Todos los derechos reservados</span>
+  <span>Hecho con datos 📊</span>
+</footer>
+
+<!-- ══════════ LOGIN MODAL ══════════ -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal">
+    <button class="modal-close" id="modal-close-btn">✕</button>
+    <div class="modal-icon">🔐</div>
+    <h2>Acceso Admin</h2>
+    <p>Área privada de Métrica. Ingresa tu contraseña de administrador para continuar.</p>
+    <div class="input-group">
+      <label>Contraseña</label>
+      <input type="password" id="admin-pw" placeholder="••••••••••••" />
+      <p class="error-msg" id="login-err">Contraseña incorrecta. Intenta de nuevo.</p>
+    </div>
+    <button class="modal-btn" id="login-btn">Entrar →</button>
+  </div>
+</div>
+
+<!-- ══════════ ADMIN PANEL ══════════ -->
+<div id="admin-panel">
+  <div class="admin-nav">
+    <h1>
+      <img src="logo.png" style="height:22px;filter:drop-shadow(0 0 5px rgba(57,255,110,0.5));" alt="logo" />
+      Panel de Admin
+      <span class="admin-badge">Privado</span>
+    </h1>
+    <div style="display:flex;gap:0.75rem;">
+      <button class="btn btn-ghost" onclick="closeAdmin()" style="border-radius:8px;padding:0.45rem 0.9rem;font-size:0.78rem;">← Volver</button>
+      <button class="btn btn-primary" onclick="logoutAdmin()" style="border-radius:8px;padding:0.45rem 0.9rem;font-size:0.78rem;">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div class="admin-body">
+    <div class="admin-section-title"><span>➕</span> Agregar proyecto</div>
+    <div class="form-grid">
+      <div class="form-field">
+        <label>Título del proyecto *</label>
+        <input type="text" id="f-title" placeholder="Mi Proyecto" />
+      </div>
+      <div class="form-field">
+        <label>URL del proyecto *</label>
+        <input type="url" id="f-url" placeholder="https://ejemplo.com" />
+      </div>
+      <div class="form-field full">
+        <label>Descripción</label>
+        <textarea id="f-desc" rows="3" placeholder="Qué hace y con qué tecnologías está construido..."></textarea>
+      </div>
+      <div class="form-field full">
+        <label>URL de imagen (cuadrada 1:1 recomendado)</label>
+        <input type="url" id="f-img" placeholder="https://ejemplo.com/imagen.jpg" />
+      </div>
+      <div class="form-field">
+        <label>Tags (separados por coma)</label>
+        <input type="text" id="f-tags" placeholder="React, Supabase, Python" />
+      </div>
+      <div class="form-field" style="display:flex;align-items:flex-end;padding-bottom:0.1rem;">
+        <div class="checkbox-row">
+          <input type="checkbox" id="f-featured" />
+          <label for="f-featured" style="text-transform:none;letter-spacing:0;font-size:0.85rem;color:var(--text);cursor:pointer;">Marcar como destacado</label>
+        </div>
+      </div>
+      <div class="form-field full">
+        <button class="btn btn-primary" onclick="addProject()" style="width:auto;border-radius:10px;">Publicar proyecto →</button>
+      </div>
+    </div>
+
+    <div class="admin-section-title"><span>📁</span> Proyectos publicados</div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Estado</th><th>Título</th><th>URL</th><th>Tags</th><th>Acción</th>
+        </tr>
+      </thead>
+      <tbody id="admin-tbody">
+        <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ TOAST ══════════ -->
+<div id="toast">
+  <span id="toast-icon">✓</span>
+  <span id="toast-msg">OK</span>
+</div>
+
+<script>
+  // ╔══════════════════════════════════════╗
+  // ║   🔧  CONFIGURACIÓN — EDITA AQUÍ    ║
+  // ╚══════════════════════════════════════╝
+  const SUPABASE_URL  = 'TU_SUPABASE_URL';       // ← pega aquí
+  const SUPABASE_ANON = 'TU_SUPABASE_ANON_KEY';  // ← pega aquí
+
+  // ─────────────────────────────────────────
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // Cursor glow
+  const glow = document.getElementById('glow');
+  document.addEventListener('mousemove', e => {
+    glow.style.left = e.clientX + 'px';
+    glow.style.top  = e.clientY + 'px';
+  });
+
+  // Año footer
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // ── Logo: 5 clics → admin
+  let taps = 0, tapTimer = null;
+  const tapBar = document.getElementById('tap-bar');
+  document.getElementById('logo-tap').addEventListener('click', () => {
+    taps++;
+    tapBar.style.width = (taps * 20) + '%';
+    clearTimeout(tapTimer);
+    if (taps >= 5) {
+      taps = 0; tapBar.style.width = '0%';
+      openLogin();
+    } else {
+      tapTimer = setTimeout(() => { taps = 0; tapBar.style.width = '0%'; }, 1800);
+    }
+  });
+
+  // ── Modal
+  const modal   = document.getElementById('login-modal');
+  const pwInput = document.getElementById('admin-pw');
+  const errMsg  = document.getElementById('login-err');
+
+  function openLogin() {
+    modal.classList.add('open');
+    pwInput.value = ''; pwInput.classList.remove('err');
+    errMsg.classList.remove('show');
+    setTimeout(() => pwInput.focus(), 80);
+  }
+  document.getElementById('modal-close-btn').onclick = () => modal.classList.remove('open');
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('login-btn').onclick = doLogin;
+
+  async function doLogin() {
+    const pw  = pwInput.value.trim();
+    const btn = document.getElementById('login-btn');
+    if (!pw) return;
+    btn.disabled = true; btn.textContent = 'Verificando...';
+    try {
+      const { data, error } = await db.from('config').select('value').eq('key','admin_password').single();
+      if (error || !data) throw new Error();
+      if (pw === data.value) {
+        sessionStorage.setItem('metrica_admin','ok');
+        modal.classList.remove('open');
+        openAdmin();
+      } else {
+        pwInput.classList.add('err'); errMsg.classList.add('show');
+        pwInput.value = ''; pwInput.focus();
+      }
+    } catch {
+      errMsg.textContent = 'Error de conexión. Verifica tu configuración.';
+      errMsg.classList.add('show');
+    }
+    btn.disabled = false; btn.textContent = 'Entrar →';
+  }
+
+  // ── Admin
+  function openAdmin()  { document.getElementById('admin-panel').classList.add('open'); loadAdminProjects(); }
+  function closeAdmin() { document.getElementById('admin-panel').classList.remove('open'); }
+  function logoutAdmin(){ sessionStorage.removeItem('metrica_admin'); closeAdmin(); showToast('Sesión cerrada','success'); }
+
+  // ── Load public
+  async function loadProjects() {
+    const c = document.getElementById('projects-container');
+    try {
+      const { data, error } = await db.from('projects').select('*').order('created_at',{ascending:false});
+      if (error) throw error;
+      c.className = 'projects-grid';
+      if (!data || !data.length) {
+        c.innerHTML = `<div class="empty-state">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          <p>Aún no hay proyectos publicados.<br>Agrega uno desde el panel admin.</p>
+        </div>`;
+        return;
+      }
+      c.innerHTML = data.map(card).join('');
+    } catch {
+      c.className = 'projects-grid';
+      c.innerHTML = `<div class="empty-state"><p>Error al cargar proyectos.<br>Revisa tu configuración de Supabase.</p></div>`;
+    }
+  }
+
+  function card(p) {
+    const tags = (p.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('');
+    const thumb = p.image_url
+      ? `<img class="card-thumb" src="${p.image_url}" alt="${p.title}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'card-thumb-placeholder\\'><svg width=\\'32\\' height=\\'32\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'white\\' stroke-width=\\'1.5\\'><rect x=\\'3\\' y=\\'3\\' width=\\'18\\' height=\\'18\\' rx=\\'2\\'/>\\</svg>\\</div>'">`
+      : `<div class="card-thumb-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>`;
+    return `
+      <a class="project-card" href="${p.url||'#'}" target="_blank" rel="noopener">
+        ${thumb}
+        <div class="card-body">
+          <div class="card-tags">${tags}</div>
+          <h3 class="card-title">${p.title}</h3>
+          <p class="card-desc">${p.description||''}</p>
+          <div class="card-footer">
+            <span class="card-link">Ver proyecto →</span>
+            ${p.featured?'<span class="featured-badge">★ Destacado</span>':''}
+          </div>
+        </div>
+      </a>`;
+  }
+
+  // ── Admin table
+  async function loadAdminProjects() {
+    const tbody = document.getElementById('admin-tbody');
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">Cargando...</td></tr>`;
+    const { data } = await db.from('projects').select('*').order('created_at',{ascending:false});
+    if (!data||!data.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:1.5rem;">Sin proyectos aún.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = data.map(p=>`
+      <tr>
+        <td><span class="dot ${p.featured?'':'off'}"></span>${p.featured?'Destacado':'Normal'}</td>
+        <td><strong>${p.title}</strong></td>
+        <td><a href="${p.url}" target="_blank" style="color:var(--accent);font-size:0.78rem;font-family:var(--font-mono);">${(p.url||'').substring(0,32)}${p.url&&p.url.length>32?'...':''}</a></td>
+        <td style="color:var(--muted);font-size:0.78rem;">${(p.tags||[]).join(', ')}</td>
+        <td><button class="del-btn" onclick="deleteProject('${p.id}')">Eliminar</button></td>
+      </tr>`).join('');
+  }
+
+  async function addProject() {
+    const title = document.getElementById('f-title').value.trim();
+    const url   = document.getElementById('f-url').value.trim();
+    const desc  = document.getElementById('f-desc').value.trim();
+    const img   = document.getElementById('f-img').value.trim();
+    const tags  = document.getElementById('f-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    const feat  = document.getElementById('f-featured').checked;
+    if (!title||!url) { showToast('Título y URL son obligatorios','error'); return; }
+    const {error} = await db.from('projects').insert({title,url,description:desc,image_url:img,tags,featured:feat});
+    if (error) { showToast('Error: '+error.message,'error'); return; }
+    showToast('¡Proyecto publicado!','success');
+    ['f-title','f-url','f-desc','f-img','f-tags'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-featured').checked=false;
+    loadAdminProjects(); loadProjects();
+  }
+
+  async function deleteProject(id) {
+    if (!confirm('¿Eliminar este proyecto? No se puede deshacer.')) return;
+    const {error} = await db.from('projects').delete().eq('id',id);
+    if (error) { showToast('Error al eliminar','error'); return; }
+    showToast('Proyecto eliminado','success');
+    loadAdminProjects(); loadProjects();
+  }
+
+  // ── Toast
+  let toastTimer;
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    document.getElementById('toast-msg').textContent = msg;
+    document.getElementById('toast-icon').textContent = type==='success'?'✓':'✕';
+    t.className = 'show '+type;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.className='', 3500);
+  }
+
+  // ── Init
+  loadProjects();
+</script>
+</body>
+</html>

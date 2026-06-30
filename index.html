@@ -560,6 +560,8 @@
   // ── Login con Supabase Auth (email + contraseña)
   let failedAttempts = 0;
 let blockedUntil = 0;
+const MAX_INTENTOS = 1;
+const BLOQUEO_MS = 60 * 60 * 1000; // 1 hora
 
 async function doLogin() {
   const now = Date.now();
@@ -587,22 +589,25 @@ async function doLogin() {
     pwInput.classList.add('err'); errMsg.classList.add('show');
     pwInput.value = ''; pwInput.focus();
 
-    if (failedAttempts >= 1) {
-      blockedUntil = Date.now() + 30000;
-      failedAttempts = 0;
-      let segs = 3600;
-      btn.disabled = true;
-      const intervalo = setInterval(() => {
-        segs--;
-        btn.textContent = `Bloqueado ${segs}s...`;
-        if (segs <= 0) {
-          clearInterval(intervalo);
-          btn.disabled = false;
-          btn.textContent = 'Entrar →';
-        }
-      }, 1000);
+    if (failedAttempts >= MAX_INTENTOS) {
+  blockedUntil = Date.now() + BLOQUEO_MS;
+  failedAttempts = 0;
+  btn.disabled = true;
+  btn.textContent = 'Bloqueado 60:00';
+  const intervalo = setInterval(() => {
+    const restante = Math.ceil((blockedUntil - Date.now()) / 1000);
+    if (restante <= 0) {
+      clearInterval(intervalo);
+      btn.disabled = false;
+      btn.textContent = 'Entrar →';
       return;
     }
+    const min = String(Math.floor(restante / 60)).padStart(2, '0');
+    const seg = String(restante % 60).padStart(2, '0');
+    btn.textContent = `Bloqueado ${min}:${seg}`;
+  }, 1000);
+  return;
+}
   }
   btn.disabled = false; btn.textContent = 'Entrar →';
 }

@@ -558,33 +558,62 @@
   document.getElementById('login-btn').onclick = doLogin;
 
   // ── Login con Supabase Auth (email + contraseña)
-  async function doLogin() {
-    const email = emailIn.value.trim();
-    const pw    = pwInput.value.trim();
-    const btn   = document.getElementById('login-btn');
-    if (!email || !pw) return;
-    btn.disabled = true; btn.textContent = 'Verificando...';
-    errMsg.classList.remove('show'); pwInput.classList.remove('err');
-    try {
-      const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
-      if (error || !data.user) throw error;
-      modal.classList.remove('open');
-      openAdmin();
-    } catch {
-      pwInput.classList.add('err'); errMsg.classList.add('show');
-      pwInput.value = ''; pwInput.focus();
+  let failedAttempts = 0;
+let blockedUntil = 0;
+
+async function doLogin() {
+  const now = Date.now();
+  if (now < blockedUntil) {
+    const segs = Math.ceil((blockedUntil - now) / 1000);
+    showToast(`Espera ${segs}s antes de intentar de nuevo`, 'error');
+    return;
+  }
+
+  const email = emailIn.value.trim();
+  const pw    = pwInput.value.trim();
+  const btn   = document.getElementById('login-btn');
+  if (!email || !pw) return;
+  btn.disabled = true; btn.textContent = 'Verificando...';
+  errMsg.classList.remove('show'); pwInput.classList.remove('err');
+
+  try {
+    const { data, error } = await db.auth.signInWithPassword({ email, password: pw });
+    if (error || !data.user) throw error;
+    failedAttempts = 0;
+    modal.classList.remove('open');
+    openAdmin();
+  } catch {
+    failedAttempts++;
+    pwInput.classList.add('err'); errMsg.classList.add('show');
+    pwInput.value = ''; pwInput.focus();
+
+    if (failedAttempts >= 3) {
+      blockedUntil = Date.now() + 30000;
+      failedAttempts = 0;
+      let segs = 30;
+      btn.disabled = true;
+      const intervalo = setInterval(() => {
+        segs--;
+        btn.textContent = `Bloqueado ${segs}s...`;
+        if (segs <= 0) {
+          clearInterval(intervalo);
+          btn.disabled = false;
+          btn.textContent = 'Entrar →';
+        }
+      }, 1000);
+      return;
     }
-    btn.disabled = false; btn.textContent = 'Entrar →';
   }
+  btn.disabled = false; btn.textContent = 'Entrar →';
+}
 
-  function openAdmin()  { document.getElementById('admin-panel').classList.add('open'); loadAdminProjects(); }
-  function closeAdmin() { document.getElementById('admin-panel').classList.remove('open'); }
-  async function logoutAdmin() {
-    await db.auth.signOut();
-    closeAdmin();
-    showToast('Sesión cerrada', 'success');
-  }
-
+function openAdmin()  { document.getElementById('admin-panel').classList.add('open'); loadAdminProjects(); }
+function closeAdmin() { document.getElementById('admin-panel').classList.remove('open'); }
+async function logoutAdmin() {
+  await db.auth.signOut();
+  closeAdmin();
+  showToast('Sesión cerrada', 'success');
+}
   // ── Proyectos públicos
   async function loadProjects() {
     const c = document.getElementById('projects-container');

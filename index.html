@@ -587,10 +587,10 @@ async function doLogin() {
     pwInput.classList.add('err'); errMsg.classList.add('show');
     pwInput.value = ''; pwInput.focus();
 
-    if (failedAttempts >= 3) {
+    if (failedAttempts >= 1) {
       blockedUntil = Date.now() + 30000;
       failedAttempts = 0;
-      let segs = 30;
+      let segs = 3600;
       btn.disabled = true;
       const intervalo = setInterval(() => {
         segs--;
